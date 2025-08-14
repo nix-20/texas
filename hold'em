@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Monopoly Poker Strategico</title>
+<style>
+body { font-family: Arial; background: #2b2b2b; color: #fff; text-align: center; }
+h1 { color: #f0c000; margin-top: 20px; }
+.cards { display: flex; justify-content: center; gap: 10px; margin: 10px; }
+.card { width: 60px; height: 90px; border-radius: 10px; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; }
+.player { margin: 15px; }
+button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #f0c000; color: #000; font-weight: bold; }
+.actionButtons { margin: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Monopoly Poker Strategico</h1>
+<div>
+Numero di giocatori (compreso te): 
+<select id="numPlayers">
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+</select>
+<button onclick="startGame()">Inizia Gioco</button>
+</div>
+
+<div class="game" id="gameArea"></div>
+
+<script>
+const suits=["♠","♥","♦","♣"];
+const values=[2,3,4,5,6,7,8,9,10,11,12,13,14]; // 11=J,12=Q,13=K,14=A
+
+function createDeck(){
+  const deck=[];
+  for(let s of suits){
+    for(let v of values){
+      deck.push({value:v,suit:s});
+    }
+  }
+  return deck.sort(()=>Math.random()-0.5);
+}
+
+function cardString(c){ return (c.value>10?["J","Q","K","A"][c.value-11]:c.value)+c.suit; }
+
+function evaluateHand(cards){
+  const vals=cards.map(c=>c.value).sort((a,b)=>a-b);
+  const suitsArr=cards.map(c=>c.suit);
+  const counts={};
+  vals.forEach(v=>counts[v]=(counts[v]||0)+1);
+  const pairs=Object.values(counts).filter(c=>c===2).length;
+  const three=Object.values(counts).filter(c=>c===3).length;
+  const four=Object.values(counts).filter(c=>c===4).length;
+  const isFlush=suitsArr.every(s=>s===suitsArr[0]);
+  let isStraight=true;
+  for(let i=1;i<vals.length;i++) if(vals[i]!==vals[i-1]+1){ isStraight=false; break; }
+  if(four===1) return {rank:8,name:"Poker"};
+  if(three===1 && pairs===1) return {rank:7,name:"Full"};
+  if(isFlush && isStraight) return {rank:9,name:"Scala Colore"};
+  if(isFlush) return {rank:6,name:"Colore"};
+  if(isStraight) return {rank:5,name:"Scala"};
+  if(three===1) return {rank:4,name:"Tris"};
+  if(pairs===2) return {rank:3,name:"Doppia Coppia"};
+  if(pairs===1) return {rank:2,name:"Coppia"};
+  return {rank:1,name:"Carta Alta"};
+}
+
+let hands=[], deck=[], numPlayers, currentPlayer=0, actionsDone=0;
+
+function startGame(){
+  numPlayers=parseInt(document.getElementById("numPlayers").value);
+  deck=createDeck();
+  hands=[];
+  const gameArea=document.getElementById("gameArea");
+  gameArea.innerHTML="";
+  for(let i=0;i<numPlayers;i++){
+    hands.push(deck.splice(0,5));
+  }
+  currentPlayer=0; actionsDone=0;
+  showHands(false);
+  nextTurn();
+}
+
+function showHands(showAll){
+  const gameArea=document.getElementById("gameArea");
+  gameArea.innerHTML="";
+  for(let i=0;i<numPlayers;i++){
+    const div=document.createElement("div");
+    div.className="player";
+    div.innerHTML=`<b>${i===0?"Tu":"Bot "+i}</b>: <div class="cards">${hands[i].map(c=>`<div class="card">${showAll||i===0?cardString(c):"??"}</div>`).join('')}</div>`;
+    gameArea.appendChild(div);
+  }
+}
+
+function botDecision(hand){
+  const val=evaluateHand(hand);
+  if(val.rank>=7) return "Rilancia";
+  if(val.rank>=4) return "Chiama";
+  return "Fold";
+}
+
+function nextTurn(){
+  if(currentPlayer===0){
+    // turno umano
+    const gameArea=document.getElementById("gameArea");
+    const btnDiv=document.createElement("div");
+    btnDiv.className="actionButtons";
+    ["Rilancia","Chiama","Fold"].forEach(act=>{
+      const b=document.createElement("button");
+      b.textContent=act;
+      b.onclick=()=>{actionsDone++; currentPlayer++; nextTurn();}
+      btnDiv.appendChild(b);
+    });
+    gameArea.appendChild(btnDiv);
+  } else if(currentPlayer<numPlayers){
+    // turno bot
+    const action=botDecision(hands[currentPlayer]);
+    alert("Bot "+currentPlayer+" decide di: "+action);
+    actionsDone++;
+    currentPlayer++;
+    nextTurn();
+  } else {
+    endGame();
+  }
+}
+
+function endGame(){
+  showHands(true);
+  const results=hands.map(h=>evaluateHand(h));
+  const maxRank=Math.max(...results.map(r=>r.rank));
+  const winners=results.map((r,i)=>r.rank===maxRank?i:null).filter(v=>v!==null);
+  const gameArea=document.getElementById("gameArea");
+  const winDiv=document.createElement("div");
+  winDiv.style.marginTop="20px";
+  if(winners.length===1){
+    winDiv.innerHTML=`<b>Vince ${winners[0]===0?"Tu":"Bot "+winners[0]} con ${results[winners[0]].name}!</b>`;
+  } else {
+    winDiv.innerHTML=`Pareggio tra: ${winners.map(w=>w===0?"Tu":"Bot "+w).join(", ")} con ${results[winners[0]].name}`;
+  }
+  gameArea.appendChild(winDiv);
+}
+</script>
+</body>
+</html>
