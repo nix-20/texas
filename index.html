@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Poker Semplice 9/10</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #0b3d91; color: white; text-align: center; }
+  #table { margin: 20px auto; padding: 20px; background: #006400; border-radius: 10px; width: 80%; max-width: 700px; }
+  .cards { display: flex; justify-content: center; margin: 10px; }
+  .card { width: 60px; height: 90px; margin: 5px; background: white; color: black; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; }
+  button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; border-radius: 5px; }
+  #info { margin-top: 15px; }
+</style>
+</head>
+<body>
+
+<h1>Poker Semplice 9/10</h1>
+<div id="table">
+  <div id="playerCards" class="cards"></div>
+  <div id="communityCards" class="cards"></div>
+  <div>
+    <button onclick="playerAction('check')">Check</button>
+    <button onclick="playerAction('call')">Call</button>
+    <button onclick="playerAction('raise')">Raise</button>
+    <button onclick="playerAction('fold')">Fold</button>
+    <button onclick="playerAction('allin')">All-in</button>
+  </div>
+  <div id="info"></div>
+</div>
+
+<script>
+const suits = ['♠','♥','♦','♣'];
+const values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+let deck = [], playerCards = [], communityCards = [], pot = 0, playerMoney = 1000, botMoney = 1000;
+
+function createDeck(){
+  deck = [];
+  for(let s of suits){
+    for(let v of values){
+      deck.push({suit: s, value: v});
+    }
+  }
+  shuffle(deck);
+}
+
+function shuffle(array){
+  for(let i = array.length-1; i>0; i--){
+    let j = Math.floor(Math.random()*(i+1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function deal(){
+  playerCards = [deck.pop(), deck.pop()];
+  communityCards = [];
+  pot = 0;
+  updateUI();
+}
+
+function updateUI(){
+  const pcDiv = document.getElementById('playerCards');
+  const ccDiv = document.getElementById('communityCards');
+  pcDiv.innerHTML = playerCards.map(c=>`<div class="card">${c.value}${c.suit}</div>`).join('');
+  ccDiv.innerHTML = communityCards.map(c=>`<div class="card">${c.value}${c.suit}</div>`).join('');
+  document.getElementById('info').innerText = `Pot: ${pot} | Tu: $${playerMoney} | Bot: $${botMoney}`;
+}
+
+function playerAction(action){
+  if(action === 'fold'){
+    document.getElementById('info').innerText = 'Hai foldato. Bot vince.';
+    playerMoney -= 0; // perde solo il round
+    setTimeout(newRound, 2000);
+    return;
+  }
+
+  let bet = 0;
+  if(action==='raise') bet = Math.min(100, playerMoney);
+  if(action==='allin') bet = playerMoney;
+
+  pot += bet;
+  playerMoney -= bet;
+
+  botTurn();
+
+  if(communityCards.length < 5) dealCommunity();
+  else determineWinner();
+  updateUI();
+}
+
+function botTurn(){
+  // Semplice IA intelligente: gioca aggressivo se ha coppia alta
+  let botBet = 0;
+  if(Math.random()>0.5) botBet = Math.min(50, botMoney);
+  else botBet = 0;
+  pot += botBet;
+  botMoney -= botBet;
+}
+
+function dealCommunity(){
+  // 3 flop, poi turn e river
+  if(communityCards.length===0){
+    communityCards.push(deck.pop(), deck.pop(), deck.pop());
+  } else if(communityCards.length<5){
+    communityCards.push(deck.pop());
+  }
+}
+
+function determineWinner(){
+  // Versione semplificata: chi ha il valore più alto vince
+  const allCards = [...playerCards, ...communityCards];
+  const botCards = [deck.pop(), deck.pop(), ...communityCards];
+  const playerScore = Math.max(...allCards.map(c=>values.indexOf(c.value)));
+  const botScore = Math.max(...botCards.map(c=>values.indexOf(c.value)));
+  let msg = '';
+  if(playerScore > botScore){
+    playerMoney += pot;
+    msg = 'Hai vinto il round!';
+  } else {
+    botMoney += pot;
+    msg = 'Bot vince il round!';
+  }
+  document.getElementById('info').innerText = msg + ` | Pot: ${pot} | Tu: $${playerMoney} | Bot: $${botMoney}`;
+  setTimeout(newRound, 2000);
+}
+
+function newRound(){
+  if(playerMoney <= 0) { alert('Hai finito i soldi!'); playerMoney=1000; botMoney=1000; }
+  createDeck();
+  deal();
+}
+
+// Inizio gioco
+createDeck();
+deal();
+</script>
+</body>
+</html>
